@@ -7,7 +7,7 @@
 
 ## Usage
 
-    dynamic-route53 -a my_aws_profile -z Z1BDYJDN34534 -d office.domain.com -t 600
+    dynamic-route53 --aws=my_aws_profile --hosted_zone=Z1BDYJDN34534 --domain=office.domain.com --ttl=600
 
 ## Help
 
