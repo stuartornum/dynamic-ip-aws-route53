@@ -1,0 +1,70 @@
+#!/usr/bin/env python
+
+import boto3
+import urllib2
+import json
+import sys
+from optparse import OptionParser
+
+
+def get_public_ip():
+    try:
+        data = urllib2.urlopen('https://api.ipify.org?format=json')
+        return json.loads(data.read())['ip']
+    except:
+        pass
+
+
+def update_route53(aws_profile, hosted_zone_id, fqdn, ip_addr, ttl):
+    session = boto3.Session(profile_name=aws_profile)
+    route53_conn = session.client('route53')
+
+    response = route53_conn.change_resource_record_sets(
+        HostedZoneId=hosted_zone_id,
+        ChangeBatch={
+            'Comment': 'Updated Automagically',
+            'Changes': [
+                {
+                    'Action': 'UPSERT',
+                    'ResourceRecordSet': {
+                        'Name': fqdn,
+                        'Type': 'A',
+                        'TTL': ttl,
+                        'ResourceRecords': [
+                            {
+                                'Value': ip_addr
+                            },
+                        ]
+                    }
+                }
+            ]
+        }
+    )
+
+    print response
+
+
+def main():
+    parser = OptionParser()
+    parser.add_option('-z', '--hosted_zone', dest='hosted_zone', default=None,
+                    help='Route 53 Hosted Zone ID e.v. Z1674836123526')
+    parser.add_option('-a', '--aws', dest='aws', default=None,
+                    help='Set the AWS account from within the ~/.aws/credentials file')
+    parser.add_option('-d', '--domain', dest='domain', default=None,
+                    help='The subdomain to update, for example myrouter.domain.com')
+    parser.add_option('-t', '--ttl', dest='ttl', default=300,
+                    help='The TTL to set on the record')
+
+    (options, args) = parser.parse_args()
+
+    if options.hosted_zone is None or options.aws is None or options.domain is None:
+        print "\n\n[ERROR] Missing parameters, run --help to see what you're missing..."
+        sys.exit(1)
+
+    ip_addr = get_public_ip()
+    if ip_addr is not None:
+        update_route53(options.aws, options.hosted_zone, options.domain, ip_addr, int(options.ttl))
+
+
+if __name__ == "__main__":
+    main()
